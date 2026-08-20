@@ -10,6 +10,41 @@
 
 架構圖、密鑰設定方式、已知行為差異（`withFailureHandler` 省略時的行為、導覽列從 `?page=xxx` 改成 `xxx.html`）都跟 `lin-on` 完全一致，不重複寫，請參考 `lin-on/MIGRATION.md`。這裡只記錄跟 lin-on-test 有關、不一樣的部分。
 
+## 日常開發流程：以後改東西該怎麼做
+
+這個專案現在是「前端 Vercel（跟著 git push 自動部署）+ 後端 Apps Script（要手動 clasp push/deploy）」的混合架構，**兩條部署管道完全獨立、互不相關**——push 到 GitHub 不會讓 Apps Script 跟著更新，`clasp push` 也不會讓 Vercel 重新部署。改東西之前先分清楚自己改的是哪一邊。
+
+### 情況 1：只改前端畫面（.html 的排版、文字、樣式，沒有新增呼叫後端的功能）
+
+改完 `.html` → `git add` → `git commit` → `git push`。GitHub 接了 Vercel，push 上去會自動重新部署，不用碰 Apps Script。
+
+### 情況 2：只改後端邏輯（.js 檔案本身的邏輯調整，沒有新增函式）
+
+改完 `.js` 後，**兩步都要做**：
+
+```
+clasp push                          # 更新 Apps Script 的 HEAD 程式碼
+clasp deploy -i <deploymentId>      # 把「正在使用中」的部署更新到新版本
+```
+
+`<deploymentId>` 用 `clasp deployments` 查。只做 `clasp push` 不做 `clasp deploy -i` 的話，前端打到的還是舊邏輯——部署是釘住版本號的快照，不會自動跟著 HEAD 更新。
+
+### 情況 3：開發新功能（前端要呼叫一個全新的後端函式）——最容易漏步驟
+
+1. 在對應的 `.js` 檔案裡寫新函式。如果是會寫入庫存/資料的操作，記得照現有的模式在函式最前面加 `rejectIfStocktakeLocked('操作名稱')` 檢查盤點鎖定（參考 `AssetOps.js` 裡 `importAssetFast`/`withdrawItem`/`returnAsset` 的寫法），並用 `LockService.getScriptLock()` 包住實際寫入，避免併發寫壞資料。
+2. **把新函式名稱加進 `ApiRouter.js` 的 `API_WHITELIST`**——這一步最容易忘記。忘記加的話前端呼叫會拿到 `{"error":"不允許呼叫此函式：xxx"}`，不是「函式不存在」，是白名單故意擋下來的，很容易誤以為是別的地方壞掉在那邊除錯。
+3. 在 `.html` 裡用 `google.script.run.withSuccessHandler(...).withFailureHandler(...).新函式(參數)` 呼叫（`gas-polyfill.js` 已經把這個語法透明轉發到 `/api/gas`，不用改呼叫方式）。
+4. 部署：`.js` + `ApiRouter.js` 走情況 2（`clasp push` + `clasp deploy -i`）；`.html` 走情況 1（`git push`）。**兩邊都要各自部署**，缺一邊功能就是一半動一半不動。
+5. 建議動手前先回頭看一下這份文件最上面「呼叫點盤點」那張表，改完之後也把新函式加進去，保持這份文件是白名單的即時對照表，下次要查「這個函式是哪個頁面在用、宣告在哪個檔案」才不會要重新盤點一次。
+
+### 一般新功能開發的建議順序
+
+1. 先想清楚這個功能純前端、純後端、還是兩邊都要動（大部分新功能都是情況 3）。
+2. 後端先寫、先確認邏輯對（可以在 Apps Script 編輯器裡直接執行函式測試，不用等前端串好）。
+3. 白名單別忘記加。
+4. 前端串接，本機開 `.html` 直接用瀏覽器打開通常沒辦法測（`google.script.run`/`fetch('/api/gas')` 需要真的部署過的網址），所以前端邏輯寫完後直接照上面步驟 4 部署，再到 Vercel 給的網址上實測。
+5. 兩邊都部署完，再回來補這份文件（呼叫點盤點表 + 白名單清單），避免文件跟實際程式碼兜不起來，下次要查就找不到。
+
 ## 呼叫點盤點（11 個 html、50 處呼叫）
 
 比 lin-on 多 2 個頁面（`fridge.html`、`nine-grid.html`），白名單也因此比 lin-on 的 31 個多 2 個（`getFridgeFeed`、`getNineGridTarget`）：
