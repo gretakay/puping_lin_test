@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>每日物資航班：即時抵達狀況</title>
+	<style>
+		:root {
+			--bg: #dfe8f7;
+			--panel: #f8fbff;
+			--line: #bfd0e8;
+			--ink: #0b2448;
+			--muted: #445b78;
+			--ok: #0f766e;
+			--warn: #b45309;
+			--danger: #b91c1c;
+			--shadow: 0 10px 30px rgba(11, 31, 58, 0.1);
+		}
+
+		* { box-sizing: border-box; }
+
+		html, body { height: 100%; }
+
+		body {
+			margin: 0;
+			padding: 12px;
+			background:
+				radial-gradient(circle at 10% 12%, rgba(251, 191, 36, 0.16), transparent 34%),
+				radial-gradient(circle at 94% 4%, rgba(56, 189, 248, 0.18), transparent 35%),
+				radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.08), transparent 40%),
+				linear-gradient(180deg, #eef5ff, #e8f1fb 58%, var(--bg));
+			color: var(--ink);
+			font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+			overflow: hidden;
+		}
+
+		.frame {
+			max-width: 1600px;
+			margin: 0 auto;
+			height: calc(100vh - 24px);
+			display: flex;
+			flex-direction: column;
+		}
+
+		.head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 10px;
+			border: 1px solid var(--line);
+			background: var(--panel);
+			border-radius: 14px;
+			padding: 12px 14px;
+			box-shadow: var(--shadow);
+			flex-shrink: 0;
+		}
+
+		.title {
+			font-size: clamp(24px, 2vw, 34px);
+			font-weight: 900;
+			letter-spacing: 0.02em;
+		}
+
+		.subtitle {
+			margin-top: 2px;
+			font-size: 14px;
+			font-weight: 700;
+			color: #1d4ed8;
+		}
+
+		.meta {
+			text-align: right;
+			font-size: 13px;
+			font-weight: 700;
+			color: var(--muted);
+		}
+
+		#statusBadge {
+			display: inline-block;
+			margin-top: 5px;
+			padding: 4px 10px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 800;
+			background: #dcfce7;
+			color: var(--ok);
+			border: 1px solid rgba(5, 150, 105, 0.2);
+		}
+
+		.main {
+			display: grid;
+			grid-template-columns: minmax(350px, 430px) 1fr;
+			gap: 12px;
+			margin-top: 12px;
+			min-height: 0;
+			flex: 1;
+		}
+
+		.panel {
+			border: 1px solid var(--line);
+			background: rgba(255, 255, 255, 0.95);
+			border-radius: 14px;
+			box-shadow: var(--shadow);
+			display: flex;
+			flex-direction: column;
+			min-height: 0;
+		}
+
+		.panel-head {
+			padding: 11px 12px;
+			border-bottom: 1px dashed #c7d2de;
+			font-size: 16px;
+			font-weight: 900;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			background: linear-gradient(90deg, #eff6ff, #f8fafc);
+			flex-shrink: 0;
+		}
+
+		.panel-note {
+			font-size: 12px;
+			font-weight: 800;
+			color: #0f766e;
+		}
+
+		.featured-wrap {
+			padding: 10px;
+			display: grid;
+			grid-template-rows: 1fr auto;
+			gap: 8px;
+			min-height: 0;
+		}
+
+		.card {
+			border: 1px solid #d8e1ea;
+			border-radius: 12px;
+			overflow: hidden;
+			background: #fff;
+		}
+
+		.card.new {
+			border-color: #86efac;
+		}
+
+		.photo {
+			width: 100%;
+			height: 300px;
+			object-fit: cover;
+			display: block;
+			background: #dbe4ee;
+		}
+
+		.featured-main .photo {
+			height: clamp(180px, 27vh, 280px);
+		}
+
+		.featured-sub {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+
+		.featured-sub .card .photo {
+			height: 120px;
+		}
+
+		.featured-sub .info {
+			padding: 8px;
+		}
+
+		.info { padding: 10px; }
+
+		.name {
+			font-size: 28px;
+			font-weight: 900;
+			line-height: 1.12;
+		}
+
+		.featured-main .name {
+			font-size: clamp(26px, 2.2vw, 34px);
+		}
+
+		.featured-sub .name {
+			font-size: 19px;
+			line-height: 1.15;
+		}
+
+		.donor {
+			margin-top: 4px;
+			color: #1e3a8a;
+			font-size: 20px;
+			font-weight: 900;
+		}
+
+		.featured-sub .donor {
+			font-size: 15px;
+			margin-top: 3px;
+		}
+
+		.meta-row {
+			margin-top: 8px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 8px;
+			font-size: 16px;
+			font-weight: 800;
+			color: var(--muted);
+			border-top: 1px dashed #d6dfea;
+			padding-top: 8px;
+		}
+
+		.featured-sub .meta-row {
+			font-size: 13px;
+			padding-top: 6px;
+			margin-top: 6px;
+		}
+
+		.meta-left {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.shelf-wrap {
+			padding: 0;
+			display: grid;
+			grid-template-rows: auto 1fr;
+			min-height: 0;
+		}
+
+		.board-bar {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 12px;
+			font-size: 13px;
+			font-weight: 800;
+			color: #1d4ed8;
+			border-bottom: 1px dashed #cdd8e7;
+		}
+
+		.board-table {
+			display: grid;
+			grid-template-rows: auto 1fr;
+			min-height: 0;
+		}
+
+		.board-head,
+		.board-row {
+			display: grid;
+			grid-template-columns: 70px 1.4fr 1fr 1fr 160px 140px;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 12px;
+		}
+
+		.board-head {
+			font-size: 12px;
+			font-weight: 900;
+			color: #1e3a8a;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			background: #edf4ff;
+			border-bottom: 1px solid #cfdbeb;
+		}
+
+		.board-body {
+			min-height: 0;
+			overflow: hidden;
+			display: grid;
+			align-content: start;
+		}
+
+		.board-row {
+			font-size: 22px;
+			font-weight: 900;
+			border-bottom: 1px dashed #d2deee;
+			height: 94px;
+		}
+
+		.board-row:last-child {
+			border-bottom: none;
+		}
+
+		.flight-no {
+			font-size: 18px;
+			font-weight: 900;
+			color: #1d4ed8;
+		}
+
+		.col-item {
+			font-size: 30px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.col-donor,
+		.col-loc {
+			font-size: 19px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.col-expiry {
+			font-size: 17px;
+			white-space: nowrap;
+		}
+
+		.thumb {
+			width: 126px;
+			height: 78px;
+			object-fit: cover;
+			border-radius: 10px;
+			background: #d7e2ef;
+			border: 1px solid #c7d5e4;
+		}
+
+		.expiry {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 999px;
+			padding: 5px 9px;
+			font-size: 15px;
+			font-weight: 900;
+			white-space: nowrap;
+			border: 1px solid transparent;
+		}
+
+		.expiry.ok { background: #dcfce7; color: var(--ok); border-color: rgba(5, 150, 105, 0.2); }
+		.expiry.warn { background: #ffedd5; color: var(--warn); border-color: rgba(217, 119, 6, 0.2); }
+		.expiry.danger { background: #fee2e2; color: var(--danger); border-color: rgba(220, 38, 38, 0.2); }
+		.expiry.none { background: #e2e8f0; color: #475569; border-color: rgba(100, 116, 139, 0.2); }
+
+		.badge {
+			font-size: 12px;
+			font-weight: 800;
+			padding: 2px 8px;
+			border-radius: 999px;
+			background: #e2e8f0;
+			color: #334155;
+		}
+
+		.empty {
+			border: 2px dashed #bfd0e6;
+			border-radius: 10px;
+			text-align: center;
+			padding: 16px 10px;
+			font-size: 16px;
+			font-weight: 800;
+			color: #475569;
+		}
+
+		.arrival {
+			position: fixed;
+			left: 50%;
+			top: 12px;
+			transform: translateX(-50%);
+			z-index: 50;
+			min-width: min(90vw, 680px);
+			max-width: min(90vw, 860px);
+			padding: 11px 14px;
+			border-radius: 12px;
+			background: rgba(15, 23, 42, 0.92);
+			color: #f8fafc;
+			font-size: clamp(14px, 1.2vw, 18px);
+			font-weight: 900;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 220ms ease;
+		}
+
+		.arrival.show { opacity: 1; }
+
+		@media (max-width: 980px) {
+			body { overflow: auto; }
+			.frame { height: auto; min-height: calc(100vh - 24px); }
+			.main { grid-template-columns: 1fr; min-height: auto; }
+			.featured-wrap { grid-template-rows: auto auto; }
+			.board-head,
+			.board-row {
+				grid-template-columns: 64px 1.4fr 1fr 1fr 140px 120px;
+			}
+			.col-item { font-size: 24px; }
+			.col-donor,
+			.col-loc { font-size: 16px; }
+		}
+
+		@media (max-width: 680px) {
+			body { padding: 8px; }
+			.head { align-items: flex-start; flex-direction: column; }
+			.meta { text-align: left; }
+			.featured-sub { grid-template-columns: 1fr; }
+			.photo { height: 240px; }
+			.featured-main .photo { height: 170px; }
+			.name { font-size: 22px; }
+			.donor { font-size: 16px; }
+			.board-head,
+			.board-row {
+				grid-template-columns: 56px 1fr 0.9fr 0.9fr 120px 100px;
+				gap: 5px;
+				padding: 6px;
+			}
+			.board-row { height: 86px; }
+			.col-item { font-size: 18px; }
+			.col-donor,
+			.col-loc,
+			.col-expiry { font-size: 13px; }
+			.thumb { width: 96px; height: 64px; }
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.arrival { transition: none; }
+		}
+	</style>
+</head>
+<body>
+	<div class="frame">
+		<div class="head">
+			<div>
+				<div class="title">每日物資航班：即時抵達狀況</div>
+			</div>
+			<div class="meta">
+				<div id="lastUpdate">更新中...</div>
+				<div id="statusBadge">連線中</div>
+			</div>
+		</div>
+
+		<div class="main">
+			<section class="panel">
+				<div class="panel-head">
+					<span>今日重點航班</span>
+					<span id="featuredMeta" class="panel-note">最近 3 筆捐贈（新到舊）</span>
+				</div>
+				<div id="featured" class="featured-wrap"></div>
+			</section>
+
+			<section class="panel">
+				<div class="panel-head">
+					<span>到站總看板</span>
+				</div>
+				<div class="shelf-wrap">
+					<div class="board-bar">
+						<span id="boardMeta">載入中...</span>
+						<span class="badge">鍵盤：［ 前一頁 ｜ ］ 下一頁</span>
+					</div>
+					<div class="board-table">
+						<div class="board-head">
+							<span>班次</span>
+							<span>物品名稱</span>
+							<span>捐贈人</span>
+							<span>存放位置</span>
+							<span>效期</span>
+							<span>圖片</span>
+						</div>
+						<div id="boardBody" class="board-body"></div>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+
+	<div id="arrival" class="arrival">新到貨通知</div>
+
+	<script src="./gas-polyfill.js"></script>
+	<script>
+		const REFRESH_MS = 8000;
+		const FEED_LIMIT = 24;
+		const FEATURED_LIMIT = 3;
+		const featuredEl = document.getElementById('featured');
+		const featuredMetaEl = document.getElementById('featuredMeta');
+		const boardBodyEl = document.getElementById('boardBody');
+		const boardMetaEl = document.getElementById('boardMeta');
+		const lastUpdate = document.getElementById('lastUpdate');
+		const statusBadge = document.getElementById('statusBadge');
+		const arrivalEl = document.getElementById('arrival');
+
+		const knownKeys = new Set();
+		const arrivalQueue = [];
+		let boardPages = [];
+		let boardPageIndex = 0;
+		let boardFlipTimer = null;
+		let showingArrival = false;
+		let firstPaint = true;
+
+		const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+			'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
+			'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+			'<stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#dcfce7"/></linearGradient></defs>' +
+			'<rect width="600" height="400" fill="url(#g)"/>' +
+			'<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"' +
+			' font-family="sans-serif" font-size="34" fill="#334155">尚未同步圖片</text></svg>'
+		);
+
+		function escapeHtml(v) {
+			return String(v || '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/\"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+
+		function makeKey(it) {
+			return [
+				it.donationDate || '',
+				it.donorName || '',
+				it.itemName || '',
+				it.location || '',
+				String(it.quantity || ''),
+				it.photoUrl || ''
+			].join('|');
+		}
+
+		function maskDonorName(name) {
+			const raw = String(name || '').trim();
+			if (!raw) return '未填捐贈人';
+
+			const chars = Array.from(raw);
+			if (chars.length === 1) return chars[0] + 'O';
+			if (chars.length === 2) return chars[0] + 'O';
+			if (chars.length === 3) return chars[0] + 'O' + chars[2];
+			return chars[0] + 'O' + chars[chars.length - 1];
+		}
+
+		function expiryInfo(dateStr) {
+			if (!dateStr) return { cls: 'none', text: '未填有效期' };
+			const d = new Date(dateStr + 'T00:00:00');
+			if (Number.isNaN(d.getTime())) return { cls: 'none', text: '未填有效期' };
+
+			const now = new Date();
+			const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+			const diff = Math.floor((d - today) / 86400000);
+
+			if (diff < 0) return { cls: 'danger', text: '已過期 ' + Math.min(Math.abs(diff), 3) + ' 天' };
+			if (diff <= 3) return { cls: 'danger', text: '剩 ' + diff + ' 天' };
+			if (diff <= 7) return { cls: 'warn', text: '剩 ' + diff + ' 天' };
+			return { cls: 'ok', text: '剩 ' + diff + ' 天' };
+		}
+
+		function donationTime(it) {
+			if (!it || !it.donationDate) return 0;
+			const t = new Date(it.donationDate + 'T00:00:00').getTime();
+			return Number.isNaN(t) ? 0 : t;
+		}
+
+		function donationAgeDays(it) {
+			const t = donationTime(it);
+			if (!t) return Number.POSITIVE_INFINITY;
+			const now = new Date();
+			const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+			return Math.floor((today - t) / 86400000);
+		}
+
+		function boardPriorityRank(it) {
+			const expiry = expiryInfo(it.expiryDate);
+			const text = expiry.text;
+			const newArrival = donationAgeDays(it) <= 1;
+
+			if (expiry.cls === 'none') return 7;
+			if (text.indexOf('已過期') === 0) return 1;
+			if (text.indexOf('剩 0 天') === 0 || text.indexOf('剩 1 天') === 0) return 2;
+			if (text.indexOf('剩 2 天') === 0 || text.indexOf('剩 3 天') === 0) return 3;
+			if (newArrival) return 4;
+			if (text.indexOf('剩 4 天') === 0 || text.indexOf('剩 5 天') === 0 || text.indexOf('剩 6 天') === 0 || text.indexOf('剩 7 天') === 0) return 5;
+			return 6;
+		}
+
+		function cardHtml(it, isNew) {
+			const e = expiryInfo(it.expiryDate);
+			const photo = it.photoUrl ? escapeHtml(it.photoUrl) : PLACEHOLDER;
+			const donor = escapeHtml(maskDonorName(it.donorName));
+			const itemName = escapeHtml(it.itemName || '未填物品名稱');
+			const location = escapeHtml(it.location || '未填位置');
+
+			return '' +
+				'<article class="card' + (isNew ? ' new' : '') + '">' +
+					'<img class="photo" src="' + photo + '" alt="' + itemName + '" loading="lazy">' +
+					'<div class="info">' +
+						'<div class="name">' + itemName + '</div>' +
+						'<div class="donor">捐贈者：' + donor + '</div>' +
+						'<div class="meta-row">' +
+							'<span class="meta-left">' + location + '</span>' +
+							'<span class="expiry ' + e.cls + '">有效期：' + e.text + '</span>' +
+						'</div>' +
+					'</div>' +
+				'</article>';
+		}
+
+		function drawFeatured(items) {
+			if (!items.length) {
+				featuredEl.innerHTML = '<div class="empty">目前沒有重點航班</div>';
+				featuredMetaEl.textContent = '目前無資料';
+				return;
+			}
+
+			const main = items[0];
+			const subs = items.slice(1);
+			let featuredHtml = '<div class="featured-main">' + cardHtml(main, false) + '</div>';
+			if (subs.length) {
+				featuredHtml += '<div class="featured-sub">' + subs.map(function(it) {
+					return cardHtml(it, false);
+				}).join('') + '</div>';
+			}
+			featuredEl.innerHTML = featuredHtml;
+			featuredMetaEl.textContent = '最近 ' + items.length + ' 筆捐贈（新到舊）';
+		}
+
+		function rowHtml(it, rowNo) {
+			const e = expiryInfo(it.expiryDate);
+			const photo = it.photoUrl ? escapeHtml(it.photoUrl) : PLACEHOLDER;
+			const itemName = escapeHtml(it.itemName || '未填物品名稱');
+			const donor = escapeHtml(maskDonorName(it.donorName));
+			const location = escapeHtml(it.location || '未填位置');
+
+			return '' +
+				'<div class="board-row">' +
+					'<span class="flight-no">FR' + String(rowNo).padStart(3, '0') + '</span>' +
+					'<span class="col-item" title="' + itemName + '">' + itemName + '</span>' +
+					'<span class="col-donor" title="' + donor + '">' + donor + '</span>' +
+					'<span class="col-loc" title="' + location + '">' + location + '</span>' +
+					'<span class="col-expiry"><span class="expiry ' + e.cls + '">' + e.text + '</span></span>' +
+					'<img class="thumb" src="' + photo + '" alt="' + itemName + '" loading="lazy">' +
+				'</div>';
+		}
+
+		function buildBoardPages(items) {
+			const rowHeight = window.innerWidth <= 680 ? 86 : 94;
+			const usableHeight = boardBodyEl.clientHeight || 470;
+			const rowsPerPage = Math.max(3, Math.floor(usableHeight / rowHeight));
+			const pages = [];
+			for (let i = 0; i < items.length; i += rowsPerPage) {
+				pages.push(items.slice(i, i + rowsPerPage));
+			}
+			return pages.length ? pages : [[]];
+		}
+
+		function drawBoardPage() {
+			const pageItems = boardPages[boardPageIndex] || [];
+			if (!pageItems.length) {
+				boardBodyEl.innerHTML = '<div class="empty">目前沒有可顯示資料</div>';
+				boardMetaEl.textContent = '目前沒有航班';
+				return;
+			}
+
+			const pageSize = pageItems.length;
+			const startNo = boardPageIndex * pageSize + 1;
+			boardBodyEl.innerHTML = pageItems.map(function(it, idx) {
+				return rowHtml(it, startNo + idx);
+			}).join('');
+
+			const total = boardPages.reduce(function(sum, page) { return sum + page.length; }, 0);
+			boardMetaEl.textContent = '總筆數 ' + total + ' ｜ 第 ' + (boardPageIndex + 1) + '/' + boardPages.length + ' 頁（自動輪播）';
+		}
+
+		function startBoardFlip() {
+			if (boardFlipTimer) {
+				clearInterval(boardFlipTimer);
+				boardFlipTimer = null;
+			}
+			if (boardPages.length <= 1) return;
+
+			boardFlipTimer = setInterval(function() {
+				boardPageIndex = (boardPageIndex + 1) % boardPages.length;
+				drawBoardPage();
+			}, 6000);
+		}
+
+		function render(items) {
+			if (!Array.isArray(items) || items.length === 0) {
+				featuredEl.innerHTML = '<div class="empty">目前沒有可顯示的捐贈資料</div>';
+				boardBodyEl.innerHTML = '<div class="empty">目前沒有可顯示資料</div>';
+				boardMetaEl.textContent = '目前沒有航班';
+				featuredMetaEl.textContent = '目前無資料';
+				return;
+			}
+
+			const latestFeatured = items
+				.map(function(it, idx) { return { it: it, idx: idx }; })
+				.sort(function(a, b) {
+					const d = donationTime(b.it) - donationTime(a.it);
+					if (d !== 0) return d;
+					return a.idx - b.idx;
+				})
+				.slice(0, FEATURED_LIMIT)
+				.map(function(entry) { return entry.it; });
+
+			drawFeatured(latestFeatured);
+
+			const sorted = items.slice().sort(function(a, b) {
+				const pr = boardPriorityRank(a) - boardPriorityRank(b);
+				if (pr !== 0) return pr;
+
+				const dt = donationTime(b) - donationTime(a);
+				if (dt !== 0) return dt;
+
+				const an = String(a.itemName || '');
+				const bn = String(b.itemName || '');
+				return an.localeCompare(bn, 'zh-Hant');
+			});
+
+			boardPages = buildBoardPages(sorted);
+			if (boardPageIndex >= boardPages.length) boardPageIndex = 0;
+			drawBoardPage();
+			startBoardFlip();
+			firstPaint = false;
+
+			if (knownKeys.size > 500) {
+				const keep = new Set(items.map(makeKey));
+				knownKeys.clear();
+				keep.forEach(function(k) { knownKeys.add(k); });
+			}
+		}
+
+		function showNextArrival() {
+			if (showingArrival || arrivalQueue.length === 0) return;
+			showingArrival = true;
+			arrivalEl.textContent = arrivalQueue.shift();
+			arrivalEl.classList.add('show');
+
+			setTimeout(function() {
+				arrivalEl.classList.remove('show');
+				setTimeout(function() {
+					showingArrival = false;
+					showNextArrival();
+				}, 260);
+			}, 3200);
+		}
+
+		function setStatus(ok, msg) {
+			statusBadge.textContent = msg;
+			if (ok) {
+				statusBadge.style.background = '#d1fae5';
+				statusBadge.style.color = '#047857';
+			} else {
+				statusBadge.style.background = '#fee2e2';
+				statusBadge.style.color = '#b91c1c';
+			}
+		}
+
+		function loadFeed() {
+			setStatus(true, '更新中');
+			google.script.run
+				.withSuccessHandler(function(res) {
+					if (!res || !res.success) {
+						setStatus(false, '資料異常');
+						return;
+					}
+
+					const items = Array.isArray(res.data) ? res.data : [];
+					const newKeys = new Set();
+					items.forEach(function(it) {
+						const key = makeKey(it);
+						if (!firstPaint && !knownKeys.has(key)) {
+							newKeys.add(key);
+							arrivalQueue.push('新到貨：' + maskDonorName(it.donorName) + ' 捐贈『' + (it.itemName || '未填品名') + '』');
+						}
+						knownKeys.add(key);
+					});
+
+					render(items);
+					showNextArrival();
+
+					const t = new Date();
+					lastUpdate.textContent = '最後更新：' + t.toLocaleString('zh-TW', { hour12: false });
+					setStatus(true, '連線正常');
+				})
+				.withFailureHandler(function(err) {
+					lastUpdate.textContent = '最後更新：連線失敗';
+					setStatus(false, '連線失敗');
+					console.error('getFridgeFeed failed', err);
+				})
+				.getFridgeFeed(FEED_LIMIT);
+		}
+
+		loadFeed();
+		setInterval(loadFeed, REFRESH_MS);
+
+		document.addEventListener('keydown', function(e) {
+			if (!boardPages.length) return;
+			if (e.key === '[') {
+				e.preventDefault();
+				boardPageIndex = (boardPageIndex - 1 + boardPages.length) % boardPages.length;
+				drawBoardPage();
+			}
+			if (e.key === ']') {
+				e.preventDefault();
+				boardPageIndex = (boardPageIndex + 1) % boardPages.length;
+				drawBoardPage();
+			}
+		});
+
+		window.addEventListener('resize', function() {
+			if (!boardPages.length) return;
+			boardPages = buildBoardPages(
+				boardPages.reduce(function(all, page) { return all.concat(page); }, [])
+			);
+			if (boardPageIndex >= boardPages.length) boardPageIndex = 0;
+			drawBoardPage();
+			startBoardFlip();
+		});
+	</script>
+</body>
+</html>

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>資產查詢九宮格</title>
+	<style>
+		:root {
+			--bg: #f8fafc;
+			--panel: rgba(255, 255, 255, 0.95);
+			--ink: #0f172a;
+			--muted: #64748b;
+			--line: #dbeafe;
+			--hit: #f59e0b;
+			--ok: #0f766e;
+			--shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			padding: 20px 12px;
+			font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 8% 10%, rgba(29, 78, 216, 0.14), transparent 30%),
+				radial-gradient(circle at 96% 5%, rgba(15, 118, 110, 0.12), transparent 34%),
+				var(--bg);
+		}
+
+		.shell {
+			max-width: 1160px;
+			margin: 0 auto;
+		}
+
+		.hero {
+			border-radius: 18px;
+			background: linear-gradient(135deg, #1d4ed8, #0f766e);
+			color: #fff;
+			padding: 16px;
+			box-shadow: var(--shadow);
+			margin-bottom: 12px;
+		}
+
+		.hero h1 {
+			margin: 0 0 6px;
+			font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+		}
+
+		.hero p {
+			margin: 0;
+			font-weight: 700;
+			opacity: 0.95;
+		}
+
+		.hint {
+			border-radius: 12px;
+			border: 1px solid #bfdbfe;
+			background: #eff6ff;
+			color: #1e3a8a;
+			padding: 10px 12px;
+			font-weight: 800;
+			margin-bottom: 12px;
+		}
+
+		.target-card {
+			border-radius: 12px;
+			border: 1px solid #bfdbfe;
+			background: rgba(255, 255, 255, 0.95);
+			padding: 10px 12px;
+			margin-bottom: 12px;
+			box-shadow: var(--shadow);
+		}
+
+		.target-card .label {
+			color: var(--muted);
+			font-size: 12px;
+			font-weight: 800;
+			margin-bottom: 2px;
+		}
+
+		.target-card .value {
+			font-size: 1.05rem;
+			font-weight: 900;
+			word-break: break-word;
+		}
+
+		.stats {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 10px;
+			margin-bottom: 12px;
+		}
+
+		.stat {
+			background: var(--panel);
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			padding: 10px 12px;
+			box-shadow: var(--shadow);
+		}
+
+		.stat .label {
+			color: var(--muted);
+			font-size: 12px;
+			font-weight: 800;
+			margin-bottom: 2px;
+		}
+
+		.stat .value {
+			font-size: 1.25rem;
+			font-weight: 900;
+		}
+
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 10px;
+		}
+
+		.card {
+			background: var(--panel);
+			border: 1px solid #c7d2fe;
+			border-radius: 12px;
+			min-height: 94px;
+			padding: 10px;
+			box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+		}
+
+		.card.active {
+			border-color: #f97316;
+			box-shadow:
+				0 0 0 4px rgba(249, 115, 22, 0.38),
+				0 0 28px rgba(249, 115, 22, 0.45),
+				0 12px 26px rgba(249, 115, 22, 0.30);
+			background: linear-gradient(145deg, #fff7ed, #ffedd5);
+			animation: slot-pulse 1.05s ease-in-out infinite;
+		}
+
+		.card.active .card-slot {
+			color: #9a3412;
+			text-shadow: 0 0 10px rgba(249, 115, 22, 0.45);
+		}
+
+		.card-no {
+			color: #94a3b8;
+			font-size: 0.75rem;
+			font-weight: 800;
+		}
+
+		.card-slot {
+			font-size: 1.05rem;
+			font-weight: 900;
+			margin: 2px 0 4px;
+			line-height: 1.3;
+			word-break: break-word;
+		}
+
+		.tag {
+			display: inline-flex;
+			align-items: center;
+			border-radius: 999px;
+			padding: 2px 8px;
+			font-size: 11px;
+			font-weight: 800;
+			background: #f1f5f9;
+			color: #334155;
+		}
+
+		.tag.hit {
+			background: #fdba74;
+			color: #7c2d12;
+			font-weight: 900;
+			box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.25) inset;
+		}
+
+		@keyframes slot-pulse {
+			0% {
+				transform: scale(1);
+				filter: brightness(1);
+			}
+			50% {
+				transform: scale(1.015);
+				filter: brightness(1.06);
+			}
+			100% {
+				transform: scale(1);
+				filter: brightness(1);
+			}
+		}
+
+		.loc {
+			margin-top: 6px;
+			color: var(--muted);
+			font-size: 11px;
+			font-weight: 700;
+			line-height: 1.3;
+			word-break: break-word;
+		}
+
+		.empty {
+			margin-top: 12px;
+			padding: 20px;
+			text-align: center;
+			border-radius: 12px;
+			border: 1px dashed #cbd5e1;
+			color: var(--muted);
+			font-weight: 800;
+			background: rgba(255, 255, 255, 0.82);
+		}
+
+		@media (max-width: 920px) {
+			.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+		}
+
+		@media (max-width: 600px) {
+			body { padding: 14px 10px; }
+			.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<section class="hero">
+			<h1>引路小星星</h1>
+			<p>固定 16 格（可指定櫃號）。請在領借用頁查詢物品後點位置，這裡只負責亮對櫃。</p>
+		</section>
+
+		<div class="hint" id="hintText">請在領借用頁先查詢物品，再點位置名稱進入此頁。</div>
+
+		<div class="target-card">
+			<div class="label">目前物品</div>
+			<div class="value" id="targetItem">-</div>
+		</div>
+
+		<div class="stats">
+			<div class="stat"><div class="label">格位總數</div><div class="value">16</div></div>
+			<div class="stat"><div class="label">亮燈格位</div><div class="value" id="hitCount">0</div></div>
+			<div class="stat"><div class="label">可綁定位置</div><div class="value" id="boundCount">0</div></div>
+			<div class="stat"><div class="label">目標櫃號</div><div class="value" id="targetSlot">-</div></div>
+		</div>
+
+		<div id="grid" class="grid"></div>
+		<div id="emptyState" class="empty" style="display:none;">目前沒有 1F A/B/C/D 區的位置資料。</div>
+	</div>
+
+	<script src="./gas-polyfill.js"></script>
+	<script>
+		// 你可以在這裡指定要顯示的 16 個櫃號與順序
+		const FIXED_CABINET_ORDER = [
+			"B1-C21香積", "1F-B17照客", "3F-A15心燈", "1F-B08照客",
+			"B1-D05照客", "3F-A14心燈", "3F-A13心燈", "B1-B10香積",
+			"1F-C10照客", "B1-D08機動", "3F-A04心燈", "1F-C09照客",
+			"B1-D10機動", "3F-A10心燈", "3F-A15心燈", "1F-B17照客",
+		];
+        
+
+
+		const SLOT_COUNT = 16;
+		const TARGET_TTL_MS = 15000;
+		let ROOM_DATA = {};
+		let SLOT_TO_ROOM = new Array(SLOT_COUNT).fill("");
+		let ROOM_TO_SLOT = {};
+		let CABINET_KEY_TO_SLOT = {};
+		let LAST_SERVER_TS = 0;
+		let IS_PULLING_TARGET = false;
+
+		function esc(s) {
+			return String(s == null ? "" : s)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/\"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		}
+
+		function norm(s) {
+			return String(s || "")
+				.trim()
+				.toUpperCase()
+				.replace(/[－–—]/g, "-")
+				.replace(/\s+/g, "");
+		}
+
+		function hash32(s) {
+			let h = 2166136261;
+			for (let i = 0; i < s.length; i++) {
+				h ^= s.charCodeAt(i);
+				h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+			}
+			return (h >>> 0);
+		}
+
+		function is1FABCD(name, room) {
+			const floor = norm(room && room.floor);
+			const roomName = norm(name);
+			return /^1F-[ABCD](?:-|$)/.test(floor) || /^1F-[ABCD](?:-|$)/.test(roomName);
+		}
+
+		function resolveRoomName(rawLocation) {
+			const src = String(rawLocation || "").trim();
+			if (!src) return "";
+			if (ROOM_DATA[src]) return src;
+
+			const srcNorm = norm(src);
+			const names = Object.keys(ROOM_DATA || {});
+
+			for (let i = 0; i < names.length; i++) {
+				if (norm(names[i]) === srcNorm) return names[i];
+			}
+
+			const zoneMatch = srcNorm.match(/^((?:\d+F|B\d+))-([A-Z])(?:區|[-_]?\d{1,3}.*)?$/i);
+			if (zoneMatch) {
+				const floor = zoneMatch[1].toUpperCase();
+				const zone = zoneMatch[2].toUpperCase();
+				for (let i = 0; i < names.length; i++) {
+					const n = norm(names[i]);
+					if (n.indexOf(floor + "-" + zone) === 0) return names[i];
+				}
+			}
+
+			return "";
+		}
+
+		function stripFloorPrefix(value) {
+			return norm(value).replace(/^((?:\d+F|B\d+)-)/, "");
+		}
+
+		function findRoomNameLoose(label) {
+			const wanted = String(label || "").trim();
+			if (!wanted) return "";
+
+			const names = Object.keys(ROOM_DATA || {});
+			if (!names.length) return "";
+
+			const nWanted = norm(wanted);
+			const exact = names.find(n => norm(n) === nWanted);
+			if (exact) return exact;
+
+			const byResolver = resolveRoomName(wanted);
+			if (byResolver) return byResolver;
+
+			const noFloorWanted = stripFloorPrefix(wanted);
+			const candidates = names.filter(n => stripFloorPrefix(n) === noFloorWanted);
+			if (candidates.length === 1) return candidates[0];
+
+			const includes = names.filter(n => {
+				const nn = norm(n);
+				return nn.indexOf(nWanted) > -1 || nWanted.indexOf(nn) > -1;
+			});
+			if (includes.length === 1) return includes[0];
+
+			return "";
+		}
+
+		function toCabinetCoreKey(value) {
+			const base = stripFloorPrefix(value).replace(/[^A-Z0-9]/g, "");
+			return base;
+		}
+
+		function assignDeterministicSlots() {
+			SLOT_TO_ROOM = new Array(SLOT_COUNT).fill("");
+			ROOM_TO_SLOT = {};
+			CABINET_KEY_TO_SLOT = {};
+
+			const allRoomNames = Object.keys(ROOM_DATA || {});
+
+			const pick = FIXED_CABINET_ORDER && FIXED_CABINET_ORDER.length
+				? FIXED_CABINET_ORDER.slice(0, SLOT_COUNT)
+				: allRoomNames
+					.filter(name => is1FABCD(name, ROOM_DATA[name]))
+					.sort((a, b) => norm(a).localeCompare(norm(b)))
+					.slice(0, SLOT_COUNT);
+
+			for (let i = 0; i < SLOT_COUNT; i++) {
+				const wanted = String(pick[i] || '').trim();
+				if (!wanted) continue;
+
+				// 顯示名稱固定使用你提供的櫃號，不自動改寫
+				SLOT_TO_ROOM[i] = wanted;
+				const slotNo = i + 1;
+
+				// 精準命中（完全一致）
+				ROOM_TO_SLOT[wanted] = slotNo;
+
+				// 容錯命中（去掉樓層前綴後比對）
+				const coreKey = toCabinetCoreKey(wanted);
+				if (coreKey) CABINET_KEY_TO_SLOT[coreKey] = slotNo;
+			}
+		}
+
+		function renderBoard() {
+			const params = new URLSearchParams(window.location.search);
+			const locFromQuery = params.get("loc") || "";
+			let locFromStorage = "";
+			let locUpdatedAt = "";
+			let itemFromStorage = "";
+			try { locFromStorage = localStorage.getItem("nineGridTargetLoc") || ""; } catch (e) {}
+			try { locUpdatedAt = localStorage.getItem("nineGridTargetLocAt") || ""; } catch (e) {}
+			try { itemFromStorage = localStorage.getItem("nineGridTargetItem") || ""; } catch (e) {}
+
+			const now = Date.now();
+			const tsNum = Number(locUpdatedAt || 0);
+			const isStorageFresh = !!(locFromStorage && tsNum > 0 && (now - tsNum) <= TARGET_TTL_MS);
+
+			let locParam = "";
+			if (isStorageFresh) {
+				locParam = locFromStorage;
+			} else if (locFromQuery) {
+				locParam = locFromQuery;
+				try {
+					localStorage.setItem("nineGridTargetLoc", locFromQuery);
+					localStorage.setItem("nineGridTargetLocAt", String(now));
+				} catch (e) {}
+			} else {
+				try {
+					localStorage.removeItem("nineGridTargetLoc");
+					localStorage.removeItem("nineGridTargetLocAt");
+				} catch (e) {}
+			}
+
+			let itemName = itemFromStorage || "";
+			if (isStorageFresh) {
+				itemName = itemFromStorage;
+			} else if (!locParam) {
+				itemName = "";
+			}
+
+			const targetRoom = resolveRoomName(locParam) || String(locParam || "").trim();
+			let targetSlot = targetRoom && ROOM_TO_SLOT[targetRoom] ? ROOM_TO_SLOT[targetRoom] : 0;
+			if (!targetSlot && targetRoom) {
+				const coreKey = toCabinetCoreKey(targetRoom);
+				if (coreKey && CABINET_KEY_TO_SLOT[coreKey]) targetSlot = CABINET_KEY_TO_SLOT[coreKey];
+			}
+			if (targetRoom && locParam) {
+				try {
+					localStorage.setItem("nineGridTargetLoc", targetRoom);
+					if (!isStorageFresh) localStorage.setItem("nineGridTargetLocAt", String(now));
+					if (itemName) localStorage.setItem("nineGridTargetItem", itemName);
+				} catch (e) {}
+			}
+
+			const boundCount = SLOT_TO_ROOM.filter(Boolean).length;
+			document.getElementById("boundCount").textContent = String(boundCount);
+			document.getElementById("hitCount").textContent = targetSlot ? "1" : "0";
+			document.getElementById("targetSlot").textContent = targetSlot ? (SLOT_TO_ROOM[targetSlot - 1] || "-") : "-";
+			document.getElementById("targetItem").textContent = itemName || "-";
+
+			const hint = document.getElementById("hintText");
+			if (targetRoom && targetSlot) {
+				const itemLabel = itemName ? "，物品「" + itemName + "」" : "";
+				hint.textContent = "已定位" + itemLabel + "：" + targetRoom + "，已亮燈。";
+			} else if (locFromStorage && !isStorageFresh) {
+				hint.textContent = "15 秒未更新，已自動熄燈。請重新查詢物品。";
+			} else if (locParam) {
+				hint.textContent = "找不到位置「" + locParam + "」對應櫃位，請檢查 FIXED_CABINET_ORDER。";
+			} else {
+				hint.textContent = "尚未查詢，未亮燈。請在領借用頁查詢物品。";
+			}
+
+			const grid = document.getElementById("grid");
+			const empty = document.getElementById("emptyState");
+			if (!boundCount) {
+				grid.innerHTML = "";
+				empty.style.display = "block";
+				return;
+			}
+
+			empty.style.display = "none";
+			grid.innerHTML = Array.from({ length: SLOT_COUNT }, (_, i) => i + 1).map(slot => {
+				const roomName = SLOT_TO_ROOM[slot - 1] || "";
+				const isHit = targetSlot === slot;
+				const tag = isHit ? '<span class="tag hit">亮燈</span>' : '<span class="tag">待機</span>';
+				const loc = roomName ? '<div class="loc">第 ' + slot + ' 格</div>' : '<div class="loc">未配置櫃號</div>';
+				return [
+					'<div class="card ' + (isHit ? 'active' : '') + '">',
+						'<div>',
+							'<div class="card-no">櫃號</div>',
+							'<div class="card-slot">' + esc(roomName || '-') + '</div>',
+							tag,
+							loc,
+						'</div>',
+					'</div>'
+				].join("");
+			}).join("");
+		}
+
+		function loadNineGrid() {
+			google.script.run
+				.withSuccessHandler(res => {
+					const data = res || {};
+					ROOM_DATA = data.roomData || {};
+					assignDeterministicSlots();
+					renderBoard();
+					window.addEventListener("storage", function(evt) {
+						if (!evt) return;
+						if (evt.key === "nineGridTargetLoc" || evt.key === "nineGridTargetLocAt") {
+							renderBoard();
+						}
+					});
+					setInterval(renderBoard, 1200);
+					setInterval(pullTargetFromServer, 1200);
+					pullTargetFromServer();
+				})
+				.withFailureHandler(err => {
+					const msg = err && err.message ? err.message : String(err);
+					document.getElementById("grid").innerHTML = '<div class="empty">讀取位置資料失敗：' + esc(msg) + '，5 秒後自動重試...</div>';
+					setTimeout(loadNineGrid, 5000);
+				})
+				.getLocationData();
+		}
+
+		function pullTargetFromServer() {
+			if (IS_PULLING_TARGET) return;
+			IS_PULLING_TARGET = true;
+
+			google.script.run
+				.withSuccessHandler(res => {
+					IS_PULLING_TARGET = false;
+					if (!res || !res.success) return;
+
+					const loc = String(res.loc || '').trim();
+					const itemName = String(res.itemName || '').trim();
+					const ts = Number(res.ts || 0);
+					if (!loc || !ts || ts <= LAST_SERVER_TS) return;
+					LAST_SERVER_TS = ts;
+
+					try {
+						localStorage.setItem("nineGridTargetLoc", loc);
+						localStorage.setItem("nineGridTargetLocAt", String(ts));
+						if (itemName) localStorage.setItem("nineGridTargetItem", itemName);
+					} catch (e) {}
+					renderBoard();
+				})
+				.withFailureHandler(() => {
+					IS_PULLING_TARGET = false;
+				})
+				.getNineGridTarget();
+		}
+
+		loadNineGrid();
+	</script>
+</body>
+</html>
