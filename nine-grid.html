@@ -530,6 +530,11 @@
 					const itemName = String(res.itemName || '').trim();
 					const ts = Number(res.ts || 0);
 					if (!loc || !ts || ts <= LAST_SERVER_TS) return;
+
+					let localTs = 0;
+					try { localTs = Number(localStorage.getItem("nineGridTargetLocAt") || 0); } catch (e) {}
+					if (ts <= localTs) { LAST_SERVER_TS = ts; return; }
+
 					LAST_SERVER_TS = ts;
 
 					try {
