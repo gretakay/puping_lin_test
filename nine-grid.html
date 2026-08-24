@@ -270,6 +270,7 @@
 		let CABINET_KEY_TO_SLOT = {};
 		let LAST_SERVER_TS = 0;
 		let IS_PULLING_TARGET = false;
+		let DEBUG_LAST_LOGGED = "";
 
 		function esc(s) {
 			return String(s == null ? "" : s)
@@ -404,6 +405,14 @@
 			try { locFromStorage = localStorage.getItem("nineGridTargetLoc") || ""; } catch (e) {}
 			try { locUpdatedAt = localStorage.getItem("nineGridTargetLocAt") || ""; } catch (e) {}
 			try { itemFromStorage = localStorage.getItem("nineGridTargetItem") || ""; } catch (e) {}
+
+			{
+				const snapshot = locFromStorage + "||" + locUpdatedAt + "||" + itemFromStorage;
+				if (snapshot !== DEBUG_LAST_LOGGED) {
+					DEBUG_LAST_LOGGED = snapshot;
+					console.log('[nine-grid debug] renderBoard read localStorage changed ->', { locFromStorage, locUpdatedAt, itemFromStorage, at: Date.now() });
+				}
+			}
 
 			const now = Date.now();
 			const tsNum = Number(locUpdatedAt || 0);
@@ -554,13 +563,15 @@
 					const loc = String(res.loc || '').trim();
 					const itemName = String(res.itemName || '').trim();
 					const ts = Number(res.ts || 0);
+					console.log('[nine-grid debug] pullTargetFromServer got', { loc, itemName, ts, LAST_SERVER_TS });
 					if (!loc || !ts || ts <= LAST_SERVER_TS) return;
 
 					let localTs = 0;
 					try { localTs = Number(localStorage.getItem("nineGridTargetLocAt") || 0); } catch (e) {}
-					if (ts <= localTs) { LAST_SERVER_TS = ts; return; }
+					if (ts <= localTs) { console.log('[nine-grid debug] pullTargetFromServer skipped: server ts not newer than local', { ts, localTs }); LAST_SERVER_TS = ts; return; }
 
 					LAST_SERVER_TS = ts;
+					console.log('[nine-grid debug] pullTargetFromServer WRITING', { loc, itemName, ts });
 
 					try {
 						localStorage.setItem("nineGridTargetLoc", loc);
