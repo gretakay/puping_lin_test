@@ -475,6 +475,7 @@
 						"locUpdatedAt=" + JSON.stringify(locUpdatedAt) + " (tsNum=" + tsNum + ")",
 						"now=" + now + " elapsedMs=" + (tsNum ? (now - tsNum) : "-") + " TTL=" + TARGET_TTL_MS,
 						"isStorageFresh=" + isStorageFresh,
+						"itemFromStorage=" + JSON.stringify(itemFromStorage) + " itemName(rendered)=" + JSON.stringify(itemName),
 						"locParam=" + JSON.stringify(locParam),
 						"targetRoom=" + JSON.stringify(targetRoom) + " targetSlot=" + targetSlot,
 						"ROOM_TO_SLOT[targetRoom]=" + ROOM_TO_SLOT[targetRoom],
@@ -558,7 +559,7 @@
 					try {
 						localStorage.setItem("nineGridTargetLoc", loc);
 						localStorage.setItem("nineGridTargetLocAt", String(ts));
-						if (itemName) localStorage.setItem("nineGridTargetItem", itemName);
+						localStorage.setItem("nineGridTargetItem", itemName);
 					} catch (e) {}
 					renderBoard();
 				})
