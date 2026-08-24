@@ -396,43 +396,56 @@
 			}
 		}
 
+		// loc/item/ts 存成單一 JSON（單一 key），避免多分頁各自寫三個獨立 key 時
+		// 讀到「位置已更新、品名還沒更新」這種寫到一半的不一致狀態。
+		function readTarget() {
+			try {
+				const raw = localStorage.getItem("nineGridTarget");
+				if (!raw) return null;
+				const data = JSON.parse(raw);
+				return { loc: String((data && data.loc) || ''), item: String((data && data.item) || ''), ts: Number((data && data.ts) || 0) };
+			} catch (e) { return null; }
+		}
+
+		function writeTarget(loc, item, ts) {
+			try {
+				localStorage.setItem("nineGridTarget", JSON.stringify({ loc: loc, item: item, ts: ts }));
+			} catch (e) {}
+		}
+
+		function clearTarget() {
+			try { localStorage.removeItem("nineGridTarget"); } catch (e) {}
+		}
+
 		function renderBoard() {
 			const params = new URLSearchParams(window.location.search);
 			const locFromQuery = params.get("loc") || "";
-			let locFromStorage = "";
-			let locUpdatedAt = "";
-			let itemFromStorage = "";
-			try { locFromStorage = localStorage.getItem("nineGridTargetLoc") || ""; } catch (e) {}
-			try { locUpdatedAt = localStorage.getItem("nineGridTargetLocAt") || ""; } catch (e) {}
-			try { itemFromStorage = localStorage.getItem("nineGridTargetItem") || ""; } catch (e) {}
+			const stored = readTarget();
+			const locFromStorage = stored ? stored.loc : "";
+			const tsNum = stored ? stored.ts : 0;
+			const itemFromStorage = stored ? stored.item : "";
 
 			{
-				const snapshot = locFromStorage + "||" + locUpdatedAt + "||" + itemFromStorage;
+				const snapshot = locFromStorage + "||" + tsNum + "||" + itemFromStorage;
 				if (snapshot !== DEBUG_LAST_LOGGED) {
 					DEBUG_LAST_LOGGED = snapshot;
-					console.log('[nine-grid debug] renderBoard read localStorage changed ->', { locFromStorage, locUpdatedAt, itemFromStorage, at: Date.now() });
+					console.log('[nine-grid debug] renderBoard read localStorage changed ->', { locFromStorage, tsNum, itemFromStorage, at: Date.now() });
 				}
 			}
 
 			const now = Date.now();
-			const tsNum = Number(locUpdatedAt || 0);
 			const isStorageFresh = !!(locFromStorage && tsNum > 0 && (now - tsNum) <= TARGET_TTL_MS);
 
 			let locParam = "";
+			let ts = tsNum;
 			if (isStorageFresh) {
 				locParam = locFromStorage;
 			} else if (locFromQuery) {
 				locParam = locFromQuery;
-				try {
-					localStorage.setItem("nineGridTargetLoc", locFromQuery);
-					localStorage.setItem("nineGridTargetLocAt", String(now));
-				} catch (e) {}
+				ts = now;
+				writeTarget(locFromQuery, "", ts);
 			} else {
-				try {
-					localStorage.removeItem("nineGridTargetLoc");
-					localStorage.removeItem("nineGridTargetLocAt");
-					localStorage.removeItem("nineGridTargetItem");
-				} catch (e) {}
+				clearTarget();
 			}
 
 			let itemName = itemFromStorage || "";
@@ -449,11 +462,7 @@
 				if (coreKey && CABINET_KEY_TO_SLOT[coreKey]) targetSlot = CABINET_KEY_TO_SLOT[coreKey];
 			}
 			if (targetRoom && locParam) {
-				try {
-					localStorage.setItem("nineGridTargetLoc", targetRoom);
-					if (!isStorageFresh) localStorage.setItem("nineGridTargetLocAt", String(now));
-					if (itemName) localStorage.setItem("nineGridTargetItem", itemName);
-				} catch (e) {}
+				writeTarget(targetRoom, itemName, ts);
 			}
 
 			const boundCount = SLOT_TO_ROOM.filter(Boolean).length;
@@ -481,7 +490,7 @@
 					dbg.textContent = [
 						"[debug] locFromQuery=" + JSON.stringify(locFromQuery),
 						"locFromStorage=" + JSON.stringify(locFromStorage),
-						"locUpdatedAt=" + JSON.stringify(locUpdatedAt) + " (tsNum=" + tsNum + ")",
+						"tsNum=" + tsNum,
 						"now=" + now + " elapsedMs=" + (tsNum ? (now - tsNum) : "-") + " TTL=" + TARGET_TTL_MS,
 						"isStorageFresh=" + isStorageFresh,
 						"itemFromStorage=" + JSON.stringify(itemFromStorage) + " itemName(rendered)=" + JSON.stringify(itemName),
@@ -529,7 +538,7 @@
 					renderBoard();
 					window.addEventListener("storage", function(evt) {
 						if (!evt) return;
-						if (evt.key === "nineGridTargetLoc" || evt.key === "nineGridTargetLocAt" || evt.key === "nineGridTargetItem") {
+						if (evt.key === "nineGridTarget") {
 							renderBoard();
 						}
 					});
@@ -566,18 +575,13 @@
 					console.log('[nine-grid debug] pullTargetFromServer got', { loc, itemName, ts, LAST_SERVER_TS });
 					if (!loc || !ts || ts <= LAST_SERVER_TS) return;
 
-					let localTs = 0;
-					try { localTs = Number(localStorage.getItem("nineGridTargetLocAt") || 0); } catch (e) {}
+					const current = readTarget();
+					const localTs = current ? current.ts : 0;
 					if (ts <= localTs) { console.log('[nine-grid debug] pullTargetFromServer skipped: server ts not newer than local', { ts, localTs }); LAST_SERVER_TS = ts; return; }
 
 					LAST_SERVER_TS = ts;
 					console.log('[nine-grid debug] pullTargetFromServer WRITING', { loc, itemName, ts });
-
-					try {
-						localStorage.setItem("nineGridTargetLoc", loc);
-						localStorage.setItem("nineGridTargetLocAt", String(ts));
-						localStorage.setItem("nineGridTargetItem", itemName);
-					} catch (e) {}
+					writeTarget(loc, itemName, ts);
 					renderBoard();
 				})
 				.withFailureHandler(() => {
