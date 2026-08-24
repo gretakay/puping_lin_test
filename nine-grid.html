@@ -456,7 +456,8 @@
 				const itemLabel = itemName ? "，物品「" + itemName + "」" : "";
 				hint.textContent = "已定位" + itemLabel + "：" + targetRoom + "，已亮燈。";
 			} else if (locFromStorage && !isStorageFresh) {
-				hint.textContent = "15 秒未更新，已自動熄燈。請重新查詢物品。";
+				const ttlSec = Math.round(TARGET_TTL_MS / 1000);
+				hint.textContent = ttlSec + " 秒未更新，已自動熄燈。請重新查詢物品。";
 			} else if (locParam) {
 				hint.textContent = "找不到位置「" + locParam + "」對應櫃位，請檢查 FIXED_CABINET_ORDER。";
 			} else {
