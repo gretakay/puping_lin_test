@@ -232,6 +232,7 @@
 		</section>
 
 		<div class="hint" id="hintText">請在領借用頁先查詢物品，再點位置名稱進入此頁。</div>
+		<div id="debugInfo" style="font-family: monospace; font-size: 11px; color: #64748b; background: #f1f5f9; border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;"></div>
 
 		<div class="target-card">
 			<div class="label">目前物品</div>
@@ -464,6 +465,23 @@
 			} else {
 				hint.textContent = "尚未查詢，未亮燈。請在領借用頁查詢物品。";
 			}
+
+			try {
+				const dbg = document.getElementById("debugInfo");
+				if (dbg) {
+					dbg.textContent = [
+						"[debug] locFromQuery=" + JSON.stringify(locFromQuery),
+						"locFromStorage=" + JSON.stringify(locFromStorage),
+						"locUpdatedAt=" + JSON.stringify(locUpdatedAt) + " (tsNum=" + tsNum + ")",
+						"now=" + now + " elapsedMs=" + (tsNum ? (now - tsNum) : "-") + " TTL=" + TARGET_TTL_MS,
+						"isStorageFresh=" + isStorageFresh,
+						"locParam=" + JSON.stringify(locParam),
+						"targetRoom=" + JSON.stringify(targetRoom) + " targetSlot=" + targetSlot,
+						"ROOM_TO_SLOT[targetRoom]=" + ROOM_TO_SLOT[targetRoom],
+						"toCabinetCoreKey(targetRoom)=" + JSON.stringify(toCabinetCoreKey(targetRoom)) + " -> " + CABINET_KEY_TO_SLOT[toCabinetCoreKey(targetRoom)]
+					].join("\n");
+				}
+			} catch (e) {}
 
 			const grid = document.getElementById("grid");
 			const empty = document.getElementById("emptyState");
