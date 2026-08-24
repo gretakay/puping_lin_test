@@ -282,15 +282,11 @@
     function publishNineGridTarget(locName, itemName) {
       const cleanName = String(locName || '').trim();
       const cleanItemName = String(itemName || '').trim();
-      console.log('[nine-grid debug] publishNineGridTarget called with', { locName, itemName, cleanName, cleanItemName });
-      if (!cleanName) { console.log('[nine-grid debug] aborted: cleanName is empty'); return; }
+      if (!cleanName) return;
 
       const now = Date.now();
       const dedupeKey = `${cleanName}::${cleanItemName}`;
-      if (dedupeKey === LAST_NINE_GRID_KEY && (now - LAST_NINE_GRID_AT) < 1200) {
-        console.log('[nine-grid debug] aborted: deduped (same key within 1200ms)', { dedupeKey, LAST_NINE_GRID_KEY, gapMs: now - LAST_NINE_GRID_AT });
-        return;
-      }
+      if (dedupeKey === LAST_NINE_GRID_KEY && (now - LAST_NINE_GRID_AT) < 1200) return;
       LAST_NINE_GRID_LOC = cleanName;
       LAST_NINE_GRID_ITEM = cleanItemName;
       LAST_NINE_GRID_KEY = dedupeKey;
@@ -298,11 +294,10 @@
 
       try {
         localStorage.setItem('nineGridTarget', JSON.stringify({ loc: cleanName, item: cleanItemName, ts: now }));
-        console.log('[nine-grid debug] wrote to localStorage', { cleanName, cleanItemName, now });
-      } catch (e) { console.log('[nine-grid debug] localStorage write threw', e); }
+      } catch (e) {}
 
       google.script.run
-        .withFailureHandler((err) => { console.log('[nine-grid debug] setNineGridTarget failed', err); })
+        .withFailureHandler(() => {})
         .setNineGridTarget(cleanName, cleanItemName);
     }
 
@@ -819,14 +814,13 @@
       const infoDiv = document.getElementById('info');
       const selectedOption = selectEl.options[selectEl.selectedIndex] || null;
       const selectedItemKey = `${mode}::${selectedOption ? (selectedOption.getAttribute('data-item-key') || selectedValue) : selectedValue}`;
-      console.log('[nine-grid debug] showInfo() called', { mode, selectedValue, selectedIndex: selectEl.selectedIndex, selectedOptionText: selectedOption ? selectedOption.text : null });
 
       if (selectedItemKey !== LAST_INFO_ITEM_KEY) {
         INFO_NOTE_EXPANDED = false;
         LAST_INFO_ITEM_KEY = selectedItemKey;
       }
 
-      if (!selectedValue) { console.log('[nine-grid debug] showInfo() aborted: selectedValue empty'); infoDiv.style.display = 'none'; return; }
+      if (!selectedValue) { infoDiv.style.display = 'none'; return; }
 
       let item = getSelectedRenderedItem();
       if (mode === 'consumable') {
@@ -843,7 +837,6 @@
         }
       }
 
-      console.log('[nine-grid debug] resolved item =', item);
       if (item) {
         infoDiv.style.display = 'flex';
         infoDiv.className = item.isSangha ? 'mode-sangha' : 'mode-normal';

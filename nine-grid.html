@@ -232,7 +232,6 @@
 		</section>
 
 		<div class="hint" id="hintText">請在領借用頁先查詢物品，再點位置名稱進入此頁。</div>
-		<div id="debugInfo" style="font-family: monospace; font-size: 11px; color: #64748b; background: #f1f5f9; border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;"></div>
 
 		<div class="target-card">
 			<div class="label">目前物品</div>
@@ -270,7 +269,6 @@
 		let CABINET_KEY_TO_SLOT = {};
 		let LAST_SERVER_TS = 0;
 		let IS_PULLING_TARGET = false;
-		let DEBUG_LAST_LOGGED = "";
 
 		function esc(s) {
 			return String(s == null ? "" : s)
@@ -425,14 +423,6 @@
 			const tsNum = stored ? stored.ts : 0;
 			const itemFromStorage = stored ? stored.item : "";
 
-			{
-				const snapshot = locFromStorage + "||" + tsNum + "||" + itemFromStorage;
-				if (snapshot !== DEBUG_LAST_LOGGED) {
-					DEBUG_LAST_LOGGED = snapshot;
-					console.log('[nine-grid debug] renderBoard read localStorage changed ->', { locFromStorage, tsNum, itemFromStorage, at: Date.now() });
-				}
-			}
-
 			const now = Date.now();
 			const isStorageFresh = !!(locFromStorage && tsNum > 0 && (now - tsNum) <= TARGET_TTL_MS);
 
@@ -483,24 +473,6 @@
 			} else {
 				hint.textContent = "尚未查詢，未亮燈。請在領借用頁查詢物品。";
 			}
-
-			try {
-				const dbg = document.getElementById("debugInfo");
-				if (dbg) {
-					dbg.textContent = [
-						"[debug] locFromQuery=" + JSON.stringify(locFromQuery),
-						"locFromStorage=" + JSON.stringify(locFromStorage),
-						"tsNum=" + tsNum,
-						"now=" + now + " elapsedMs=" + (tsNum ? (now - tsNum) : "-") + " TTL=" + TARGET_TTL_MS,
-						"isStorageFresh=" + isStorageFresh,
-						"itemFromStorage=" + JSON.stringify(itemFromStorage) + " itemName(rendered)=" + JSON.stringify(itemName),
-						"locParam=" + JSON.stringify(locParam),
-						"targetRoom=" + JSON.stringify(targetRoom) + " targetSlot=" + targetSlot,
-						"ROOM_TO_SLOT[targetRoom]=" + ROOM_TO_SLOT[targetRoom],
-						"toCabinetCoreKey(targetRoom)=" + JSON.stringify(toCabinetCoreKey(targetRoom)) + " -> " + CABINET_KEY_TO_SLOT[toCabinetCoreKey(targetRoom)]
-					].join("\n");
-				}
-			} catch (e) {}
 
 			const grid = document.getElementById("grid");
 			const empty = document.getElementById("emptyState");
@@ -572,15 +544,13 @@
 					const loc = String(res.loc || '').trim();
 					const itemName = String(res.itemName || '').trim();
 					const ts = Number(res.ts || 0);
-					console.log('[nine-grid debug] pullTargetFromServer got', { loc, itemName, ts, LAST_SERVER_TS });
 					if (!loc || !ts || ts <= LAST_SERVER_TS) return;
 
 					const current = readTarget();
 					const localTs = current ? current.ts : 0;
-					if (ts <= localTs) { console.log('[nine-grid debug] pullTargetFromServer skipped: server ts not newer than local', { ts, localTs }); LAST_SERVER_TS = ts; return; }
+					if (ts <= localTs) { LAST_SERVER_TS = ts; return; }
 
 					LAST_SERVER_TS = ts;
-					console.log('[nine-grid debug] pullTargetFromServer WRITING', { loc, itemName, ts });
 					writeTarget(loc, itemName, ts);
 					renderBoard();
 				})
